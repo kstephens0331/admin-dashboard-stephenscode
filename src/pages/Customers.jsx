@@ -17,15 +17,35 @@ export default function Customers() {
 
   const fetchCustomers = async () => {
     try {
-      const q = query(collection(customerDb, 'customers'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
+      // Try with orderBy first, fall back to unordered query if it fails
+      let snapshot;
+      try {
+        const q = query(collection(customerDb, 'customers'), orderBy('createdAt', 'desc'));
+        snapshot = await getDocs(q);
+      } catch (orderError) {
+        console.warn('Could not order by createdAt, fetching unordered:', orderError);
+        // Fall back to unordered query if createdAt index doesn't exist
+        snapshot = await getDocs(collection(customerDb, 'customers'));
+      }
+
       const customerList = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+
+      // Sort by createdAt in JavaScript if available, otherwise by ID
+      customerList.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toMillis() - a.createdAt.toMillis();
+        }
+        return 0;
+      });
+
       setCustomers(customerList);
+      console.log(`Loaded ${customerList.length} customers from Firebase`);
     } catch (error) {
       console.error('Error fetching customers:', error);
+      alert('Error loading customers. Check browser console for details.');
     } finally {
       setLoading(false);
     }
@@ -43,6 +63,40 @@ export default function Customers() {
       ));
     } catch (error) {
       console.error('Error toggling customer status:', error);
+    }
+  };
+
+  const relinkCustomerOrders = async (customer) => {
+    try {
+      // Import ordersDb and necessary functions
+      const { ordersDb } = await import('../auth/firebase');
+      const { collection, query, where, getDocs, updateDoc: updateOrderDoc, doc: orderDoc } = await import('firebase/firestore');
+
+      // Find all orders with matching email
+      const q = query(
+        collection(ordersDb, 'orders'),
+        where('email', '==', customer.email.toLowerCase())
+      );
+
+      const snapshot = await getDocs(q);
+      let linkedCount = 0;
+
+      // Update each matching order
+      const updatePromises = snapshot.docs.map(async (order) => {
+        await updateOrderDoc(orderDoc(ordersDb, 'orders', order.id), {
+          customerId: customer.id,
+          customerName: customer.fullName,
+          linkedAccount: true,
+          linkedAt: new Date()
+        });
+        linkedCount++;
+      });
+
+      await Promise.all(updatePromises);
+      alert(`Successfully linked ${linkedCount} order${linkedCount !== 1 ? 's' : ''} to ${customer.fullName}'s account!`);
+    } catch (error) {
+      console.error('Error relinking orders:', error);
+      alert('Error relinking orders. Check console for details.');
     }
   };
 
@@ -379,6 +433,13 @@ export default function Customers() {
                               View
                             </button>
                             <button
+                              onClick={() => relinkCustomerOrders(customer)}
+                              className="px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 hover:border-purple-500/50 text-purple-400 hover:text-purple-300 text-sm font-medium transition-all"
+                              title="Link all orders with this email to this customer"
+                            >
+                              Re-link
+                            </button>
+                            <button
                               onClick={() => handleToggleStatus(customer.id, customer.status || 'active')}
                               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                                 (customer.status || 'active') === 'active'
@@ -476,6 +537,14 @@ export default function Customers() {
                 className="flex-1 px-6 py-3 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 text-white font-semibold transition-all"
               >
                 Close
+              </button>
+              <button
+                onClick={() => {
+                  relinkCustomerOrders(selectedCustomer);
+                }}
+                className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
+              >
+                Re-link Orders
               </button>
               <button
                 onClick={() => {
