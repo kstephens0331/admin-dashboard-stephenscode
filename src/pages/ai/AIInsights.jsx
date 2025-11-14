@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { db } from "../../auth/firebase";
+import { ordersDb } from "../../auth/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { Line } from "react-chartjs-2";
 import { motion } from "framer-motion";
@@ -12,7 +12,7 @@ export default function AIInsights() {
   const [alerts, setAlerts] = useState([]);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "orders"), (snapshot) => {
+    const unsubscribe = onSnapshot(collection(ordersDb, "orders"), (snapshot) => {
       setOrders(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
     return () => unsubscribe();
