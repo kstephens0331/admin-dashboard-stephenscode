@@ -79,7 +79,7 @@ export default function ReferralCredits() {
         : Math.max(0, currentCredits - amountNum);
 
       // Update customer credits
-      const customerRef = doc(db, 'customers', selectedCustomer.id);
+      const customerRef = doc(customerDb, 'customers', selectedCustomer.id);
       await updateDoc(customerRef, { referralCredits: newCredits });
 
       // Log transaction
