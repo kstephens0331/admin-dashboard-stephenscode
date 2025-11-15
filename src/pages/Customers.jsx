@@ -17,15 +17,29 @@ export default function Customers() {
 
   const fetchCustomers = async () => {
     try {
+      console.log('🔍 Starting customer fetch...');
+      console.log('📦 CustomerDb Project ID:', customerDb.app.options.projectId);
+      console.log('🔑 API Key (first 10 chars):', customerDb.app.options.apiKey?.substring(0, 10));
+
       // Try with orderBy first, fall back to unordered query if it fails
       let snapshot;
       try {
         const q = query(collection(customerDb, 'customers'), orderBy('createdAt', 'desc'));
+        console.log('⏳ Attempting ordered query...');
         snapshot = await getDocs(q);
+        console.log('✅ Ordered query successful');
       } catch (orderError) {
-        console.warn('Could not order by createdAt, fetching unordered:', orderError);
-        // Fall back to unordered query if createdAt index doesn't exist
+        console.warn('⚠️ Could not order by createdAt, fetching unordered:', orderError);
+        console.log('⏳ Attempting unordered query...');
         snapshot = await getDocs(collection(customerDb, 'customers'));
+        console.log('✅ Unordered query successful');
+      }
+
+      console.log('📊 Snapshot size:', snapshot.size);
+      console.log('📊 Snapshot empty?', snapshot.empty);
+
+      if (snapshot.empty) {
+        console.warn('⚠️ No documents found in customers collection!');
       }
 
       const customerList = snapshot.docs.map(doc => ({
@@ -33,19 +47,27 @@ export default function Customers() {
         ...doc.data()
       }));
 
+      console.log('📋 Raw customer data:', customerList);
+
       // Sort by createdAt in JavaScript if available, otherwise by ID
       customerList.sort((a, b) => {
         if (a.createdAt && b.createdAt) {
-          return b.createdAt.toMillis() - a.createdAt.toMillis();
+          // Handle both Firestore Timestamp and regular Date objects
+          const aTime = a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt).getTime();
+          const bTime = b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt).getTime();
+          return bTime - aTime;
         }
         return 0;
       });
 
       setCustomers(customerList);
-      console.log(`Loaded ${customerList.length} customers from Firebase`);
+      console.log(`✅ Successfully loaded ${customerList.length} customers from Firebase`);
     } catch (error) {
-      console.error('Error fetching customers:', error);
-      alert('Error loading customers. Check browser console for details.');
+      console.error('❌ Error fetching customers:', error);
+      console.error('❌ Error code:', error.code);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Full error:', error);
+      alert(`Error loading customers: ${error.message}\n\nCheck console for details.`);
     } finally {
       setLoading(false);
     }
