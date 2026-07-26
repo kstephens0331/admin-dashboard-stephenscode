@@ -1,25 +1,57 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../auth/firebase";
 import { useNavigate } from "react-router-dom";
+
+const AUTHORIZED_EMAIL = "info@stephenscode.dev";
+
+function getAuthErrorMessage(code) {
+  switch (code) {
+    case "auth/invalid-email":
+      return "Enter a valid email address.";
+    case "auth/missing-password":
+      return "Enter your password.";
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+      return "Incorrect email or password.";
+    case "auth/user-disabled":
+      return "This account has been disabled.";
+    case "auth/too-many-requests":
+      return "Too many failed attempts. Wait a few minutes and try again.";
+    case "auth/network-request-failed":
+      return "Network error. Check your connection and try again.";
+    default:
+      return "Login failed. Check your credentials.";
+  }
+}
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+    setSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      if (email !== "info@stephenscode.dev") {
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      if (credential.user.email !== AUTHORIZED_EMAIL) {
+        // Firebase auth succeeded, but this is not the authorized admin
+        // account -- sign out immediately so no half-authenticated session
+        // is left behind for direct-navigation bypass.
+        await signOut(auth);
         setError("You are not authorized to access the admin system.");
         return;
       }
       navigate("/dashboard");
     } catch (err) {
-      setError("Login failed. Check your credentials.");
+      setError(getAuthErrorMessage(err.code));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -50,9 +82,10 @@ export default function Login() {
 
         <button
           type="submit"
-          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded"
+          disabled={submitting}
+          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Login
+          {submitting ? "Signing in..." : "Login"}
         </button>
       </form>
     </div>

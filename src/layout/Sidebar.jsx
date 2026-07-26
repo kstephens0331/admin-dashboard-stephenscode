@@ -1,4 +1,6 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { signOut } from "firebase/auth";
+import { auth } from "../auth/firebase";
 import {
   FaHome,
   FaClipboardList,
@@ -13,6 +15,16 @@ import {
 } from "react-icons/fa";
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } finally {
+      navigate("/login");
+    }
+  };
+
   const navItem =
     "group flex items-center gap-3 px-4 py-3.5 hover:bg-gradient-to-r hover:from-orange-500/20 hover:to-orange-600/20 transition-all duration-300 rounded-xl text-sm font-medium relative overflow-hidden";
 
@@ -270,7 +282,10 @@ export default function Sidebar() {
 
       <div className="mt-auto pt-6">
         <div className="h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent mb-6"></div>
-        <button className="group w-full flex items-center gap-3 px-4 py-3.5 text-red-400 hover:text-white hover:bg-gradient-to-r hover:from-red-500/20 hover:to-red-600/20 transition-all duration-300 rounded-xl text-sm font-medium border border-slate-700/50 hover:border-red-500/50 relative overflow-hidden">
+        <button
+          onClick={handleLogout}
+          className="group w-full flex items-center gap-3 px-4 py-3.5 text-red-400 hover:text-white hover:bg-gradient-to-r hover:from-red-500/20 hover:to-red-600/20 transition-all duration-300 rounded-xl text-sm font-medium border border-slate-700/50 hover:border-red-500/50 relative overflow-hidden"
+        >
           <div className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12">
             <FaSignOutAlt />
           </div>
