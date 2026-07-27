@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { auth } from "../auth/firebase";
+import { auth, signInToAllProjects } from "../auth/firebase";
 import { useNavigate } from "react-router-dom";
 
 const AUTHORIZED_EMAIL = "info@stephenscode.dev";
@@ -47,6 +47,9 @@ export default function Login() {
         setError("You are not authorized to access the admin system.");
         return;
       }
+      // Give the dashboard a real identity in the other two Firebase projects too, so their
+      // Firestore rules can be scoped instead of left wide open. Non-fatal if it fails.
+      await signInToAllProjects(email, password);
       navigate("/dashboard");
     } catch (err) {
       setError(getAuthErrorMessage(err.code));

@@ -10,6 +10,11 @@ export default function Customers() {
   const [filterStatus, setFilterStatus] = useState('all'); // all, active, inactive
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [devUrl, setDevUrl] = useState('');
+  const [liveUrl, setLiveUrl] = useState('');
+  const [projectStatus, setProjectStatus] = useState('in-development');
+  const [savingLinks, setSavingLinks] = useState(false);
+  const [linksSavedMessage, setLinksSavedMessage] = useState('');
 
   useEffect(() => {
     fetchCustomers();
@@ -124,7 +129,29 @@ export default function Customers() {
 
   const viewCustomerDetails = (customer) => {
     setSelectedCustomer(customer);
+    setDevUrl(customer.devUrl || '');
+    setLiveUrl(customer.liveUrl || '');
+    setProjectStatus(customer.projectStatus || 'in-development');
+    setLinksSavedMessage('');
     setShowModal(true);
+  };
+
+  const saveProjectLinks = async () => {
+    setSavingLinks(true);
+    setLinksSavedMessage('');
+    try {
+      const customerRef = doc(customerDb, 'customers', selectedCustomer.id);
+      await updateDoc(customerRef, { devUrl, liveUrl, projectStatus });
+      setCustomers(customers.map(c =>
+        c.id === selectedCustomer.id ? { ...c, devUrl, liveUrl, projectStatus } : c
+      ));
+      setLinksSavedMessage('Saved.');
+    } catch (error) {
+      console.error('Error saving project links:', error);
+      setLinksSavedMessage('Could not save -- check console for details.');
+    } finally {
+      setSavingLinks(false);
+    }
   };
 
   const filteredCustomers = customers.filter(customer => {
@@ -550,6 +577,63 @@ export default function Customers() {
                     day: 'numeric'
                   }) || 'N/A'}
                 </p>
+              </div>
+
+              <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50 space-y-4">
+                <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Website Links (shown on the customer's dashboard)</p>
+
+                <div className="flex gap-2">
+                  {['in-development', 'launched'].map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => setProjectStatus(status)}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                        projectStatus === status
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-lg'
+                          : 'bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {status === 'in-development' ? 'In Development' : 'Launched'}
+                    </button>
+                  ))}
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Dev / Staging Link</label>
+                  <input
+                    type="url"
+                    value={devUrl}
+                    onChange={(e) => setDevUrl(e.target.value)}
+                    placeholder="https://project-name.vercel.app"
+                    className="w-full px-4 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white placeholder-slate-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Live Site Link</label>
+                  <input
+                    type="url"
+                    value={liveUrl}
+                    onChange={(e) => setLiveUrl(e.target.value)}
+                    placeholder="https://theirdomain.com"
+                    className="w-full px-4 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50 text-white placeholder-slate-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={saveProjectLinks}
+                    disabled={savingLinks}
+                    className="px-5 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold text-sm shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {savingLinks ? 'Saving...' : 'Save Links'}
+                  </button>
+                  {linksSavedMessage && (
+                    <span className="text-sm text-slate-400">{linksSavedMessage}</span>
+                  )}
+                </div>
               </div>
             </div>
 

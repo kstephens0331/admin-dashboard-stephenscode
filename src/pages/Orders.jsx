@@ -1,4 +1,32 @@
 import { useEffect, useState } from "react";
+
+// Orders written by the marketing checkout server carry a real planType/status; older
+// admin-created orders (AddOrder.jsx) never set these, so both must resolve to something sane.
+const STATUS_LABELS = {
+  paid_in_full: { label: "Paid in full", classes: "from-emerald-500/20 to-teal-600/20 border-emerald-500/30 text-emerald-400" },
+  deposit_paid: { label: "Deposit paid", classes: "from-amber-500/20 to-orange-600/20 border-amber-500/30 text-amber-400" },
+  downpayment_paid: { label: "Installments active", classes: "from-blue-500/20 to-cyan-600/20 border-blue-500/30 text-blue-400" },
+  downpayment_paid_schedule_failed: { label: "Installment setup failed", classes: "from-red-500/20 to-rose-600/20 border-red-500/30 text-red-400" },
+  installment_payment_failed: { label: "Payment failed", classes: "from-red-500/20 to-rose-600/20 border-red-500/30 text-red-400" },
+  remainder_invoiced: { label: "Remainder invoiced", classes: "from-amber-500/20 to-orange-600/20 border-amber-500/30 text-amber-400" },
+  completed: { label: "Completed", classes: "from-emerald-500/20 to-teal-600/20 border-emerald-500/30 text-emerald-400" },
+};
+
+function statusBadge(order) {
+  const info = STATUS_LABELS[order.status] || { label: order.status || "Completed", classes: "from-slate-500/20 to-slate-600/20 border-slate-500/30 text-slate-300" };
+  return (
+    <span className={`inline-flex items-center px-3 py-1 rounded-lg bg-gradient-to-r border font-semibold text-xs ${info.classes}`}>
+      {info.label}
+    </span>
+  );
+}
+
+const PLAN_LABELS = {
+  full: "Full payment",
+  deposit50: "50% deposit",
+  installment6: "6-month plan",
+  installment12: "12-month plan",
+};
 import { ordersDb } from "../auth/firebase"; // Use ordersDb from stephenscode-12f75 project
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -191,6 +219,7 @@ export default function Orders() {
                 <tr className="bg-slate-900/50 border-b border-slate-700/50">
                   <th className="text-left py-4 px-6 text-sm font-semibold text-slate-300 uppercase tracking-wider">Customer</th>
                   <th className="text-left py-4 px-6 text-sm font-semibold text-slate-300 uppercase tracking-wider">Total</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-slate-300 uppercase tracking-wider">Payment Status</th>
                   <th className="text-left py-4 px-6 text-sm font-semibold text-slate-300 uppercase tracking-wider">Date</th>
                   <th className="text-right py-4 px-6 text-sm font-semibold text-slate-300 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -220,6 +249,14 @@ export default function Orders() {
                       <span className="inline-flex items-center px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-600/20 border border-emerald-500/30 text-emerald-400 font-bold text-sm">
                         ${order.total.toFixed(2)}
                       </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex flex-col gap-1">
+                        {statusBadge(order)}
+                        {order.planType && (
+                          <span className="text-xs text-slate-500">{PLAN_LABELS[order.planType] || order.planType}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 px-6 text-sm text-slate-300">
                       {order.createdAt?.toDate().toLocaleString() ?? "Unknown"}
@@ -298,6 +335,22 @@ export default function Orders() {
                     <div className="text-sm text-slate-400 mb-1">Order Date</div>
                     <div className="text-sm font-semibold text-white">{selectedOrder.createdAt?.toDate().toLocaleString()}</div>
                   </div>
+                  <div className="rounded-2xl bg-slate-800/50 p-4 border border-slate-700/50">
+                    <div className="text-sm text-slate-400 mb-1">Payment Status</div>
+                    <div>{statusBadge(selectedOrder)}</div>
+                  </div>
+                  {selectedOrder.planType && (
+                    <div className="rounded-2xl bg-slate-800/50 p-4 border border-slate-700/50">
+                      <div className="text-sm text-slate-400 mb-1">Payment Plan</div>
+                      <div className="text-sm font-semibold text-white">{PLAN_LABELS[selectedOrder.planType] || selectedOrder.planType}</div>
+                    </div>
+                  )}
+                  {selectedOrder.remainderCents != null && selectedOrder.status === 'deposit_paid' && (
+                    <div className="rounded-2xl bg-slate-800/50 p-4 border border-slate-700/50">
+                      <div className="text-sm text-slate-400 mb-1">Remaining Balance</div>
+                      <div className="text-sm font-semibold text-amber-400">${(selectedOrder.remainderCents / 100).toFixed(2)}</div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-2xl bg-slate-800/50 p-6 border border-slate-700/50">
